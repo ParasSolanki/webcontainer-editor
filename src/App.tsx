@@ -1,6 +1,7 @@
 import { WebContainer } from "@webcontainer/api";
 import type { FileSystemTree } from "@webcontainer/api";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import Convert from "ansi-to-html";
 
 const files = {
   "index.js": {
@@ -37,20 +38,71 @@ app.listen(port, () => {
   },
 } satisfies FileSystemTree;
 
+const convert = new Convert();
+
 function App() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [output, setOutput] = useState("");
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const webContainerInstanceRef = useRef<WebContainer | null>(null);
+
+  useEffect(() => {
+    if (!iframeRef.current) return;
+
+    if (!iframeRef.current.contentDocument) return;
+
+    // install process output show this in terminal
+    // iframeRef.current.contentDocument.body.innerHTML = output;
+  }, [output]);
+
+  useEffect(() => {
+    if (!iframeRef.current) return;
+
+    if (!iframeRef.current.contentDocument) return;
+
+    iframeRef.current.contentDocument.body.innerText = "Loading...";
+  }, [isLoading]);
 
   useEffect(() => {
     async function handleContainerLoad() {
+      if (webContainerInstanceRef.current !== null) return;
+
+      setIsLoading(true);
+
       if (editorRef.current) {
         editorRef.current.innerText = files["index.js"].file.contents;
       }
 
-      const instance = await WebContainer.boot();
-      await instance.mount(files);
+      webContainerInstanceRef.current = await WebContainer.boot();
+      await webContainerInstanceRef.current.mount(files);
+      // Install dependencies
+      const installProcess = await webContainerInstanceRef.current.spawn(
+        "npm",
+        ["install"]
+      );
 
-      const packageJSON = await instance.fs.readFile("package.json", "utf-8");
+      installProcess.output.pipeTo(
+        new WritableStream({
+          write(data) {
+            setOutput(convert.toHtml(data));
+          },
+        })
+      );
+      // Wait for install command to exit
+      const exitCode = await installProcess.exit;
+
+      if (exitCode !== 0) {
+        throw new Error("Installation failed");
+      }
+
+      await webContainerInstanceRef.current.spawn("npm", ["run", "start"]);
+
+      // Wait for `server-ready` event
+      webContainerInstanceRef.current.on("server-ready", (port, url) => {
+        if (iframeRef.current) iframeRef.current.src = url;
+        setIsLoading(false);
+      });
     }
 
     window.addEventListener("load", handleContainerLoad);
