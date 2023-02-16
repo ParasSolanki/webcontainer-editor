@@ -109,7 +109,7 @@ function App() {
   return (
     <div className="flex h-screen w-full space-x-4 p-2">
       <div className="w-6/12">
-        <Editor onMount={handleEditorOnMount} />
+        <Editor onMount={handleEditorOnMount} defaultLanguage="typescript" />
       </div>
       <div className="w-6/12">
         <iframe

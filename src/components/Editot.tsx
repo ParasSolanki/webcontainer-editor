@@ -1,14 +1,16 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { useEffect, useRef, useState } from "react";
-import type { EditorType } from "../types/editor";
+import type { EditorType, Languages } from "../types/editor";
 
 type EditorProps = {
   defaultTheme?: string;
+  defaultLanguage: Languages;
   onMount: (editor: EditorType) => void;
 };
 
 const Editor: React.FC<EditorProps> = ({
   onMount,
+  defaultLanguage,
   defaultTheme = "vs-dark",
 }) => {
   const [editor, setEditor] = useState<EditorType>(null);
@@ -27,7 +29,7 @@ const Editor: React.FC<EditorProps> = ({
 
         return monaco.editor.create(monacoRef.current!, {
           value: "",
-          language: "",
+          language: defaultLanguage,
           theme: defaultTheme,
           minimap: { enabled: false },
           automaticLayout: true,
