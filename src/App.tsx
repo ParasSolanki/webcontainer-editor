@@ -42,6 +42,22 @@ app.listen(port, () => {
 
 const convert = new Convert();
 
+export const LanguagesFromExtention = {
+  html: "html",
+  css: "css",
+  json: "json",
+  scss: "scss",
+  less: "less",
+  js: "javascript",
+  ts: "typescript",
+} as const;
+
+const detectLanguage = (filename: string) => {
+  const ext = filename.split(".").pop() as keyof typeof LanguagesFromExtention;
+
+  return ext ? LanguagesFromExtention[ext] : "";
+};
+
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [output, setOutput] = useState("");
@@ -103,13 +119,23 @@ function App() {
 
   function handleEditorOnMount(editor: EditorType) {
     editorRef.current = editor;
-    editorRef.current?.setValue(files["index.js"].file.contents);
+    const filename = "index.js";
+    const language = detectLanguage(filename);
+    editorRef.current?.setValue(files[filename].file.contents);
+
+    editorRef.current?.onDidChangeModelContent(async () => {
+      const value = editorRef.current?.getValue();
+
+      if (!value) return;
+
+      await webContainerInstanceRef.current?.fs.writeFile("/index.js", value);
+    });
   }
 
   return (
     <div className="flex h-screen w-full space-x-4 p-2">
       <div className="w-6/12">
-        <Editor onMount={handleEditorOnMount} defaultLanguage="typescript" />
+        <Editor onMount={handleEditorOnMount} defaultLanguage="javascript" />
       </div>
       <div className="w-6/12">
         <iframe
