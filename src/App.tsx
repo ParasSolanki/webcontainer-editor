@@ -2,6 +2,8 @@ import { WebContainer } from "@webcontainer/api";
 import type { FileSystemTree } from "@webcontainer/api";
 import { useEffect, useRef, useState } from "react";
 import Convert from "ansi-to-html";
+import Editor from "./components/Editot";
+import type { EditorType } from "./types/editor";
 
 const files = {
   "index.js": {
@@ -43,18 +45,9 @@ const convert = new Convert();
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [output, setOutput] = useState("");
-  const editorRef = useRef<HTMLTextAreaElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const editorRef = useRef<EditorType>(null);
   const webContainerInstanceRef = useRef<WebContainer | null>(null);
-
-  useEffect(() => {
-    if (!iframeRef.current) return;
-
-    if (!iframeRef.current.contentDocument) return;
-
-    // install process output show this in terminal
-    // iframeRef.current.contentDocument.body.innerHTML = output;
-  }, [output]);
 
   useEffect(() => {
     if (!iframeRef.current) return;
@@ -69,10 +62,6 @@ function App() {
       if (webContainerInstanceRef.current !== null) return;
 
       setIsLoading(true);
-
-      if (editorRef.current) {
-        editorRef.current.innerText = files["index.js"].file.contents;
-      }
 
       webContainerInstanceRef.current = await WebContainer.boot();
       await webContainerInstanceRef.current.mount(files);
@@ -112,17 +101,15 @@ function App() {
     };
   }, []);
 
+  function handleEditorOnMount(editor: EditorType) {
+    editorRef.current = editor;
+    editorRef.current?.setValue(files["index.js"].file.contents);
+  }
+
   return (
     <div className="flex h-screen w-full space-x-4 p-2">
       <div className="w-6/12">
-        <textarea
-          name="editor"
-          id="editor"
-          ref={editorRef}
-          cols={30}
-          rows={10}
-          className="h-full w-full rounded border-2 border-slate-200 bg-black p-2 text-white"
-        ></textarea>
+        <Editor onMount={handleEditorOnMount} />
       </div>
       <div className="w-6/12">
         <iframe
